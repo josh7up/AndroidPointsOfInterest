@@ -143,12 +143,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     Uri placeUri = placeLikelihood.getPlace().getWebsiteUri();
                     List<Integer> placeTypes = placeLikelihood.getPlace().getPlaceTypes();
 
-                    int markerResourceId = getMarkerResourceId(placeTypes);
                     MarkerOptions markerOptions = new MarkerOptions()
                         .position(placeLikelihood.getPlace().getLatLng())
                         .title((String) placeLikelihood.getPlace().getName())
                         .snippet(displayText);
 
+                    int markerResourceId = MarkerIconMapper.getMarkerResourceId(placeTypes);
                     if (markerResourceId != MarkerIconMapper.DEFAULT_MARKER_ID) {
                         markerOptions.icon(BitmapDescriptorFactory.fromResource(markerResourceId));
                     }
@@ -158,19 +158,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 likelyPlaces.release();
             }
         });
-    }
-
-    private int getMarkerResourceId(List<Integer> placeTypes) {
-        int markerResourceId = MarkerIconMapper.DEFAULT_MARKER_ID;
-        if (!placeTypes.isEmpty()) {
-            for (int placeType : placeTypes) {
-                int resourceId = MarkerIconMapper.getMarkerResourceId(placeType);
-                if (resourceId != MarkerIconMapper.DEFAULT_MARKER_ID) {
-                    break;
-                }
-            }
-        }
-        return markerResourceId;
     }
 
     @Override

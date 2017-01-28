@@ -3,6 +3,7 @@ package com.example.josh.pointsofinterest;
 import com.google.android.gms.location.places.Place;
 
 import java.util.HashMap;
+import java.util.List;
 
 public class MarkerIconMapper {
 
@@ -29,6 +30,18 @@ public class MarkerIconMapper {
         typeIdToResourceIdMap.put(Place.TYPE_STREET_ADDRESS, R.drawable.residential_places);
         typeIdToResourceIdMap.put(Place.TYPE_BUS_STATION, R.drawable.transport);
         typeIdToResourceIdMap.put(Place.TYPE_TRANSIT_STATION, R.drawable.transport);
+    }
+
+    public static int getMarkerResourceId(List<Integer> placeTypes) {
+        if (!placeTypes.isEmpty()) {
+            for (int placeType : placeTypes) {
+                int resourceId = getMarkerResourceId(placeType);
+                if (resourceId != DEFAULT_MARKER_ID) {
+                    return resourceId;
+                }
+            }
+        }
+        return DEFAULT_MARKER_ID;
     }
 
     public static int getMarkerResourceId(int placeTypeId) {
