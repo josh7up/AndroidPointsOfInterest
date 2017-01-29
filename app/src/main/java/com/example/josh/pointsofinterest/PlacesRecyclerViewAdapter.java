@@ -10,6 +10,9 @@ import android.widget.TextView;
 
 import java.util.List;
 
+import butterknife.BindView;
+import butterknife.ButterKnife;
+
 public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecyclerViewAdapter.ViewHolder> {
 
     private final List<PlaceModel> mPlaceModels;
@@ -45,19 +48,15 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
 
-        public final TextView mPlaceNameView;
-        public final TextView mRatingValueView;
-        public final RatingBar mRatingBarView;
-        public final TextView mDescriptionView;
-        public final TextView mAddressView;
+        @BindView(R.id.placeNameView) TextView mPlaceNameView;
+        @BindView(R.id.ratingValueView) TextView mRatingValueView;
+        @BindView(R.id.ratingBarView) RatingBar mRatingBarView;
+        @BindView(R.id.descriptionView) TextView mDescriptionView;
+        @BindView(R.id.addressView) TextView mAddressView;
 
         public ViewHolder(View itemView) {
             super(itemView);
-            mPlaceNameView = (TextView) itemView.findViewById(R.id.placeNameView);
-            mRatingValueView = (TextView) itemView.findViewById(R.id.ratingValueView);
-            mRatingBarView = (RatingBar) itemView.findViewById(R.id.ratingBarView);
-            mDescriptionView = (TextView) itemView.findViewById(R.id.descriptionView);
-            mAddressView = (TextView) itemView.findViewById(R.id.addressView);
+            ButterKnife.bind(this, itemView);
         }
     }
 }

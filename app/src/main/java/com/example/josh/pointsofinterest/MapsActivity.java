@@ -52,45 +52,49 @@ import com.google.gson.reflect.TypeToken;
 import java.util.ArrayList;
 import java.util.List;
 
+import butterknife.BindView;
+import butterknife.ButterKnife;
+
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
     private static final int ACCESS_FINE_LOCATION_REQUEST_CODE = 1;
     private static final long LOCATION_UPDATE_INTERVAL = 1000 * 60 * 5;
     private static final long FASTEST_UPDATE_FREQ = 1000 * 5;
     private static final float POINTS_OF_INTEREST_ZOOM_LEVEL = 15;
+    private static final String PLACE_MODELS_KEY = "places";
 
     private GoogleMap mMap;
     private LocationRequest mLocationRequest;
     private GoogleApiClient mGoogleApiClient;
     private Marker mMyLocationMarker;
-    private DrawerLayout mDrawerLayout;
     private ActionBarDrawerToggle mActionBarDrawerToggle;
-    private RecyclerView mPlacesRecyclerView;
-    private View mPlacesContainer;
+    private final Gson gson = new Gson();
+
+    @BindView(R.id.drawerLayout) DrawerLayout mDrawerLayout;
+    @BindView(R.id.placesView) RecyclerView mPlacesRecyclerView;
+    @BindView(R.id.placesContainer) View mPlacesContainer;
+    @BindView(R.id.toolbar) Toolbar mToolbar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+        ButterKnife.bind(this);
+
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawerLayout);
         mActionBarDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout, R.string.drawer_open_description, R.string.drawer_close_description);
         mDrawerLayout.addDrawerListener(mActionBarDrawerToggle);
 
-        mPlacesRecyclerView = (RecyclerView) findViewById(R.id.placesView);
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
         mPlacesRecyclerView.setLayoutManager(linearLayoutManager);
         DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(mPlacesRecyclerView.getContext(), linearLayoutManager.getOrientation());
         mPlacesRecyclerView.addItemDecoration(dividerItemDecoration);
 
-        mPlacesContainer = findViewById(R.id.placesContainer);
-
-        Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
-        toolbar.setNavigationIcon(R.drawable.hamburger);
-        toolbar.setTitle(getString(R.string.toolbar_title));
-        setSupportActionBar(toolbar);
+        mToolbar.setNavigationIcon(R.drawable.hamburger);
+        mToolbar.setTitle(getString(R.string.toolbar_title));
+        setSupportActionBar(mToolbar);
 
         mLocationRequest = LocationRequest.create();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -141,15 +145,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @SuppressWarnings("MissingPermission")
     private void displayPointsOfInterest() {
-        final Gson gson = new Gson();
-        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(MapsActivity.this);
-        if (sharedPreferences.contains("places")) {
-            String placesJson = sharedPreferences.getString("places", null);
+        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        /*
+         * Cache the nearby places for development purposes. This will reduce the number of Google API calls and
+         * will allow the markers to load more quickly.
+         */
+        if (sharedPreferences.contains(PLACE_MODELS_KEY)) {
+            String placesJson = sharedPreferences.getString(PLACE_MODELS_KEY, null);
             List<PlaceModel> placeModels = gson.fromJson(placesJson, new TypeToken<ArrayList<PlaceModel>>() {}.getType());
             for (PlaceModel placeModel : placeModels) {
                 mMap.addMarker(getMarkerOptions(placeModel));
             }
-            PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(placeModels, MapsActivity.this);
+            PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(placeModels, this);
             mPlacesRecyclerView.setAdapter(placesAdapter);
         } else {
             PendingResult<PlaceLikelihoodBuffer> result = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient, null);
@@ -164,7 +171,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         mMap.addMarker(markerOptions);
                     }
                     likelyPlaces.release();
-                    sharedPreferences.edit().putString("places", gson.toJson(placeModels)).apply();
+                    sharedPreferences.edit().putString(PLACE_MODELS_KEY, gson.toJson(placeModels)).apply();
 
                     PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(placeModels, MapsActivity.this);
                     mPlacesRecyclerView.setAdapter(placesAdapter);
@@ -179,10 +186,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         String snippet = placeModel.getDescription() != null ?
                             placeModel.getAddress() + "\n" + placeModel.getDescription() :
                             placeModel.getAddress();
-        String phoneNumber = placeModel.getPhoneNumber();
-        float rating = placeModel.getRating();
-        int priceLevel = placeModel.getPriceLevel();
-        String websiteUrl = placeModel.getWebsiteUrl();
         List<Integer> placeTypes = placeModel.getPlaceTypes();
 
         MarkerOptions markerOptions = new MarkerOptions()
