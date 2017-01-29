@@ -1,9 +1,11 @@
 package com.example.josh.pointsofinterest;
 
 import android.Manifest;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.net.Uri;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -13,6 +15,9 @@ import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.DividerItemDecoration;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Gravity;
@@ -41,7 +46,10 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
@@ -57,6 +65,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Marker mMyLocationMarker;
     private DrawerLayout mDrawerLayout;
     private ActionBarDrawerToggle mActionBarDrawerToggle;
+    private RecyclerView mPlacesRecyclerView;
+    private View mPlacesContainer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +78,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mDrawerLayout = (DrawerLayout) findViewById(R.id.drawerLayout);
         mActionBarDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout, R.string.drawer_open_description, R.string.drawer_close_description);
         mDrawerLayout.addDrawerListener(mActionBarDrawerToggle);
+
+        mPlacesRecyclerView = (RecyclerView) findViewById(R.id.placesView);
+        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
+        mPlacesRecyclerView.setLayoutManager(linearLayoutManager);
+        DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(mPlacesRecyclerView.getContext(), linearLayoutManager.getOrientation());
+        mPlacesRecyclerView.addItemDecoration(dividerItemDecoration);
+
+        mPlacesContainer = findViewById(R.id.placesContainer);
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         toolbar.setNavigationIcon(R.drawable.hamburger);
@@ -123,41 +141,61 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @SuppressWarnings("MissingPermission")
     private void displayPointsOfInterest() {
-        PendingResult<PlaceLikelihoodBuffer> result = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient, null);
-        result.setResultCallback(new ResultCallback<PlaceLikelihoodBuffer>() {
-            @Override
-            public void onResult(@NonNull PlaceLikelihoodBuffer likelyPlaces) {
-                for (PlaceLikelihood placeLikelihood : likelyPlaces) {
-                    // Add a marker for each place near the device's current location, with an info window showing place information.
-                    String attributions = (String) placeLikelihood.getPlace().getAttributions();
-                    String address = (String) placeLikelihood.getPlace().getAddress();
-                    String displayText = "";
-                    if (attributions != null) {
-                        displayText = address + "\n" + attributions;
-                    }
-
-                    String placeId = placeLikelihood.getPlace().getId();
-                    String phoneNumber = placeLikelihood.getPlace().getPhoneNumber().toString();
-                    float rating = placeLikelihood.getPlace().getRating();
-                    int priceLevel = placeLikelihood.getPlace().getPriceLevel();
-                    Uri placeUri = placeLikelihood.getPlace().getWebsiteUri();
-                    List<Integer> placeTypes = placeLikelihood.getPlace().getPlaceTypes();
-
-                    MarkerOptions markerOptions = new MarkerOptions()
-                        .position(placeLikelihood.getPlace().getLatLng())
-                        .title((String) placeLikelihood.getPlace().getName())
-                        .snippet(displayText);
-
-                    int markerResourceId = MarkerIconMapper.getMarkerResourceId(placeTypes);
-                    if (markerResourceId != MarkerIconMapper.DEFAULT_MARKER_ID) {
-                        markerOptions.icon(BitmapDescriptorFactory.fromResource(markerResourceId));
-                    }
-
-                    mMap.addMarker(markerOptions);
-                }
-                likelyPlaces.release();
+        final Gson gson = new Gson();
+        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(MapsActivity.this);
+        if (sharedPreferences.contains("places")) {
+            String placesJson = sharedPreferences.getString("places", null);
+            List<PlaceModel> placeModels = gson.fromJson(placesJson, new TypeToken<ArrayList<PlaceModel>>() {}.getType());
+            for (PlaceModel placeModel : placeModels) {
+                mMap.addMarker(getMarkerOptions(placeModel));
             }
-        });
+            PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(placeModels, MapsActivity.this);
+            mPlacesRecyclerView.setAdapter(placesAdapter);
+        } else {
+            PendingResult<PlaceLikelihoodBuffer> result = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient, null);
+            result.setResultCallback(new ResultCallback<PlaceLikelihoodBuffer>() {
+                @Override
+                public void onResult(@NonNull PlaceLikelihoodBuffer likelyPlaces) {
+                    List<PlaceModel> placeModels = new ArrayList<>();
+                    for (PlaceLikelihood placeLikelihood : likelyPlaces) {
+                        PlaceModel placeModel = new PlaceModel(placeLikelihood);
+                        placeModels.add(placeModel);
+                        MarkerOptions markerOptions = getMarkerOptions(placeModel);
+                        mMap.addMarker(markerOptions);
+                    }
+                    likelyPlaces.release();
+                    sharedPreferences.edit().putString("places", gson.toJson(placeModels)).apply();
+
+                    PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(placeModels, MapsActivity.this);
+                    mPlacesRecyclerView.setAdapter(placesAdapter);
+                }
+            });
+        }
+    }
+
+    @NonNull
+    private MarkerOptions getMarkerOptions(PlaceModel placeModel) {
+        // Add a marker for each place near the device's current location, with an info window showing place information.
+        String snippet = placeModel.getDescription() != null ?
+                            placeModel.getAddress() + "\n" + placeModel.getDescription() :
+                            placeModel.getAddress();
+        String phoneNumber = placeModel.getPhoneNumber();
+        float rating = placeModel.getRating();
+        int priceLevel = placeModel.getPriceLevel();
+        String websiteUrl = placeModel.getWebsiteUrl();
+        List<Integer> placeTypes = placeModel.getPlaceTypes();
+
+        MarkerOptions markerOptions = new MarkerOptions()
+                .position(new LatLng(placeModel.getLat(), placeModel.getLon()))
+                .title(placeModel.getName())
+                .snippet(snippet);
+
+        int markerResourceId = MarkerIconMapper.getMarkerResourceId(placeTypes);
+        if (markerResourceId != MarkerIconMapper.DEFAULT_MARKER_ID) {
+            markerOptions.icon(BitmapDescriptorFactory.fromResource(markerResourceId));
+        }
+
+        return markerOptions;
     }
 
     @Override
@@ -252,7 +290,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.menu_item_show_list:
-                Toast.makeText(this, "Show list clicked", Toast.LENGTH_SHORT).show();
+                // Toggle the list visibility state between gone and visible.
+                mPlacesContainer.setVisibility(mPlacesContainer.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
                 break;
             case android.R.id.home:
                 if (mDrawerLayout.isDrawerOpen(GravityCompat.START)) {
