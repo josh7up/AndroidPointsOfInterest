@@ -156,65 +156,63 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
          */
         if (sharedPreferences.contains(PLACE_MODELS_KEY)) {
             String placesJson = sharedPreferences.getString(PLACE_MODELS_KEY, null);
-            mPlaceModels = gson.fromJson(placesJson, new TypeToken<ArrayList<PlaceModel>>() {}.getType());
-            clearMapMarkers();
-
-            for (PlaceModel placeModel : mPlaceModels) {
-                Marker marker = mMap.addMarker(getMarkerOptions(placeModel));
-                marker.setTag(placeModel);
-                mMarkers.add(marker);
-
-                // Calculate the distance from the current location.
-                if (mMyLocationPlaceModel != null) {
-                    float distance = distanceCalculator.calculateDistance(
-                            mMyLocationPlaceModel.getLat(),
-                            mMyLocationPlaceModel.getLon(),
-                            placeModel.getLat(),
-                            placeModel.getLon());
-                    placeModel.setDistance(distance);
-                }
-            }
-
-            PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(mPlaceModels, this, this);
-            mPlacesRecyclerView.setAdapter(placesAdapter);
+            List<PlaceModel> placeModels = gson.fromJson(placesJson, new TypeToken<ArrayList<PlaceModel>>() {}.getType());
+            updateViews(placeModels);
         } else {
             PendingResult<PlaceLikelihoodBuffer> result = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient, null);
             result.setResultCallback(new ResultCallback<PlaceLikelihoodBuffer>() {
                 @Override
                 public void onResult(@NonNull PlaceLikelihoodBuffer likelyPlaces) {
-                    clearMapMarkers();
-                    mPlaceModels.clear();
-
-                    for (PlaceLikelihood placeLikelihood : likelyPlaces) {
-                        PlaceModel placeModel = new PlaceModel(placeLikelihood);
-
-                        // Calculate the distance from the current location.
-                        if (mMyLocationPlaceModel != null) {
-                            float distance = distanceCalculator.calculateDistance(
-                                    mMyLocationPlaceModel.getLat(),
-                                    mMyLocationPlaceModel.getLon(),
-                                    placeModel.getLat(),
-                                    placeModel.getLon());
-                            placeModel.setDistance(distance);
-                        }
-
-                        mPlaceModels.add(placeModel);
-                        MarkerOptions markerOptions = getMarkerOptions(placeModel);
-                        Marker marker = mMap.addMarker(markerOptions);
-                        marker.setTag(placeModel);
-                        mMarkers.add(marker);
-                    }
+                    List<PlaceModel> placeModels = toPlaceModels(likelyPlaces);
                     likelyPlaces.release();
+                    updateViews(placeModels);
                     sharedPreferences.edit().putString(PLACE_MODELS_KEY, gson.toJson(mPlaceModels)).apply();
-
-                    PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(mPlaceModels, MapsActivity.this, MapsActivity.this);
-                    mPlacesRecyclerView.setAdapter(placesAdapter);
                 }
             });
         }
     }
 
+    private void updateViews(List <PlaceModel> placeModels) {
+        clearMapMarkers();
+        mPlaceModels = updateDistances(placeModels);
+        mMarkers = addMarkers(placeModels);
 
+        PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(mPlaceModels, this, this);
+        mPlacesRecyclerView.setAdapter(placesAdapter);
+    }
+
+    private List<PlaceModel> updateDistances(List<PlaceModel> placeModels) {
+        for (PlaceModel placeModel : placeModels) {
+            // Calculate the distance from the current location.
+            if (mMyLocationPlaceModel != null) {
+                float distance = distanceCalculator.calculateDistance(
+                        mMyLocationPlaceModel.getLat(),
+                        mMyLocationPlaceModel.getLon(),
+                        placeModel.getLat(),
+                        placeModel.getLon());
+                placeModel.setDistance(distance);
+            }
+        }
+        return placeModels;
+    }
+
+    private List<Marker> addMarkers(List<PlaceModel> placeModels) {
+        List<Marker> markers = new ArrayList<>();
+        for (PlaceModel placeModel : placeModels) {
+            Marker marker = mMap.addMarker(getMarkerOptions(placeModel));
+            marker.setTag(placeModel);
+            markers.add(marker);
+        }
+        return markers;
+    }
+
+    private List<PlaceModel> toPlaceModels(PlaceLikelihoodBuffer likelyPlaces) {
+        List<PlaceModel> placeModels = new ArrayList<>();
+        for (PlaceLikelihood placeLikelihood : likelyPlaces) {
+            placeModels.add(new PlaceModel(placeLikelihood));
+        }
+        return placeModels;
+    }
 
     private void clearMapMarkers() {
         for (Marker marker : mMarkers) {

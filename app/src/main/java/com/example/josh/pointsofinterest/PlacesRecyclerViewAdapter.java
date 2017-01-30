@@ -8,6 +8,9 @@ import android.view.ViewGroup;
 import android.widget.RatingBar;
 import android.widget.TextView;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import butterknife.BindView;
@@ -20,9 +23,16 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
     private final OnPlaceSelectedListener mOnPlaceSelectedListener;
 
     public PlacesRecyclerViewAdapter(List<PlaceModel> placeModels, OnPlaceSelectedListener onPlaceSelectedListener, Context context) {
-        mPlaceModels = placeModels;
+        mPlaceModels = new ArrayList<>(placeModels);
         mContext = context;
         mOnPlaceSelectedListener = onPlaceSelectedListener;
+
+        Collections.sort(mPlaceModels, new Comparator<PlaceModel>() {
+            @Override
+            public int compare(PlaceModel placeModel, PlaceModel otherPlaceModel) {
+                return new Float(placeModel.getDistance()).compareTo(new Float(otherPlaceModel.getDistance()));
+            }
+        });
     }
 
     @Override
