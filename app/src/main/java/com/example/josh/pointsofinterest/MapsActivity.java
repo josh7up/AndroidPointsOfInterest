@@ -55,12 +55,12 @@ import java.util.List;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, OnPlaceSelectedListener {
 
     private static final int ACCESS_FINE_LOCATION_REQUEST_CODE = 1;
     private static final long LOCATION_UPDATE_INTERVAL = 1000 * 60 * 5;
     private static final long FASTEST_UPDATE_FREQ = 1000 * 5;
-    private static final float POINTS_OF_INTEREST_ZOOM_LEVEL = 15;
+    private static final float POINTS_OF_INTEREST_ZOOM_LEVEL = 16;
     private static final String PLACE_MODELS_KEY = "places";
 
     private GoogleMap mMap;
@@ -69,6 +69,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Marker mMyLocationMarker;
     private ActionBarDrawerToggle mActionBarDrawerToggle;
     private final Gson gson = new Gson();
+    private List<PlaceModel> mPlaceModels = new ArrayList<>();
+    private List<Marker> mMarkers = new ArrayList<>();
 
     @BindView(R.id.drawerLayout) DrawerLayout mDrawerLayout;
     @BindView(R.id.placesView) RecyclerView mPlacesRecyclerView;
@@ -152,32 +154,46 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
          */
         if (sharedPreferences.contains(PLACE_MODELS_KEY)) {
             String placesJson = sharedPreferences.getString(PLACE_MODELS_KEY, null);
-            List<PlaceModel> placeModels = gson.fromJson(placesJson, new TypeToken<ArrayList<PlaceModel>>() {}.getType());
-            for (PlaceModel placeModel : placeModels) {
-                mMap.addMarker(getMarkerOptions(placeModel));
+            mPlaceModels = gson.fromJson(placesJson, new TypeToken<ArrayList<PlaceModel>>() {}.getType());
+            clearMapMarkers();
+            for (PlaceModel placeModel : mPlaceModels) {
+                Marker marker = mMap.addMarker(getMarkerOptions(placeModel));
+                marker.setTag(placeModel);
+                mMarkers.add(marker);
             }
-            PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(placeModels, this);
+            PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(mPlaceModels, this, this);
             mPlacesRecyclerView.setAdapter(placesAdapter);
         } else {
             PendingResult<PlaceLikelihoodBuffer> result = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient, null);
             result.setResultCallback(new ResultCallback<PlaceLikelihoodBuffer>() {
                 @Override
                 public void onResult(@NonNull PlaceLikelihoodBuffer likelyPlaces) {
-                    List<PlaceModel> placeModels = new ArrayList<>();
+                    clearMapMarkers();
+                    mPlaceModels.clear();
+
                     for (PlaceLikelihood placeLikelihood : likelyPlaces) {
                         PlaceModel placeModel = new PlaceModel(placeLikelihood);
-                        placeModels.add(placeModel);
+                        mPlaceModels.add(placeModel);
                         MarkerOptions markerOptions = getMarkerOptions(placeModel);
-                        mMap.addMarker(markerOptions);
+                        Marker marker = mMap.addMarker(markerOptions);
+                        marker.setTag(placeModel);
+                        mMarkers.add(marker);
                     }
                     likelyPlaces.release();
-                    sharedPreferences.edit().putString(PLACE_MODELS_KEY, gson.toJson(placeModels)).apply();
+                    sharedPreferences.edit().putString(PLACE_MODELS_KEY, gson.toJson(mPlaceModels)).apply();
 
-                    PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(placeModels, MapsActivity.this);
+                    PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(mPlaceModels, MapsActivity.this, MapsActivity.this);
                     mPlacesRecyclerView.setAdapter(placesAdapter);
                 }
             });
         }
+    }
+
+    private void clearMapMarkers() {
+        for (Marker marker : mMarkers) {
+            marker.remove();
+        }
+        mMarkers.clear();
     }
 
     @NonNull
@@ -204,12 +220,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onResume() {
         super.onResume();
-        if (!isLocationAuthorized()) {
+        if (!isLocationPermissionAuthorized()) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, ACCESS_FINE_LOCATION_REQUEST_CODE);
         }
     }
 
-    private boolean isLocationAuthorized() {
+    private boolean isLocationPermissionAuthorized() {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
@@ -224,6 +240,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onStop() {
         if (mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
             mGoogleApiClient.disconnect();
         }
         super.onStop();
@@ -232,7 +249,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @SuppressWarnings("MissingPermission")
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        if (isLocationAuthorized()) {
+        if (isLocationPermissionAuthorized()) {
             LatLng latLng = getLastKnownCurrentLocation();
             if (latLng != null) {
                 onMyLocationFound(latLng);
@@ -249,6 +266,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .position(latLng)
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
                 .title(getString(R.string.my_location_marker_text)));
+
+        PlaceModel myLocationPlaceModel = new PlaceModel.Builder()
+                .latLon(latLng.latitude, latLng.longitude)
+                .name(getString(R.string.my_location_marker_text))
+                .build();
+
+        mMyLocationMarker.setTag(myLocationPlaceModel);
         animateCamera(latLng);
         displayPointsOfInterest();
     }
@@ -261,7 +285,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @Override
-    public void onConnectionSuspended(int i) {
+    public void onConnectionSuspended(int cause) {
     }
 
     @Override
@@ -305,5 +329,26 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 Toast.makeText(this, "Hamburgers!!!", Toast.LENGTH_SHORT).show();
         }
         return true;
+    }
+
+    @Override
+    public void onPlaceSelected(PlaceModel placeModel) {
+        // Center the camera on the corresponding map marker.
+        animateCamera(new LatLng(placeModel.getLat(), placeModel.getLon()));
+        // TODO - show the info window for the corresponding map marker.
+        Marker marker = getCorrespondingMarker(placeModel);
+        if (marker != null) {
+            marker.showInfoWindow();
+        }
+    }
+
+    private Marker getCorrespondingMarker(PlaceModel placeModel) {
+        for (Marker marker : mMarkers) {
+            Object tag = marker.getTag();
+            if (tag != null && tag.equals(placeModel)) {
+                return marker;
+            }
+        }
+        return null;
     }
 }

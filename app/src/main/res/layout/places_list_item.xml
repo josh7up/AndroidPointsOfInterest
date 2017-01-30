@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/placesItemContainer"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="5dp">
@@ -8,49 +10,49 @@
         android:id="@+id/placeNameView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="Denny's"
         android:textSize="18dp"
-        android:textStyle="bold"
-        android:text="Denny's"/>
+        android:textStyle="bold" />
 
     <LinearLayout
         android:id="@+id/ratingContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:layout_below="@+id/placeNameView"
         android:layout_margin="4dp"
-        android:layout_below="@+id/placeNameView">
+        android:orientation="horizontal">
 
         <TextView
             android:id="@+id/ratingValueView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
-            android:textSize="16dp"
+            android:layout_marginRight="5dp"
             android:text="4.3"
-            android:layout_marginRight="5dp"/>
+            android:textSize="16dp" />
 
         <RatingBar
             android:id="@+id/ratingBarView"
+            style="?android:attr/ratingBarStyleIndicator"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            style="?android:attr/ratingBarStyleIndicator" />
+            android:layout_height="wrap_content" />
     </LinearLayout>
 
-    
+
     <TextView
         android:id="@+id/descriptionView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@+id/ratingContainer"
-        android:textSize="16dp"
         android:layout_marginBottom="4dp"
-        android:text="Amazing waffles and diner food!"/>
+        android:text="Amazing waffles and diner food!"
+        android:textSize="16dp" />
 
     <TextView
         android:id="@+id/addressView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="16dp"
         android:layout_below="@id/descriptionView"
-        android:text="123 Address Blvd."/>
+        android:text="123 Address Blvd."
+        android:textSize="16dp" />
 </RelativeLayout>
