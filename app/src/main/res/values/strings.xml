@@ -6,4 +6,5 @@
     <string name="toolbar_title">Points of Interest</string>
     <string name="drawer_open_description">Navigation drawer was opened</string>
     <string name="drawer_close_description">Navigation drawer was closed</string>
+    <string name="distance_miles_template">{%} mi</string>
 </resources>

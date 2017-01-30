@@ -42,6 +42,15 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
         viewHolder.mRatingValueView.setText(placeModel.getRating() + "");
         viewHolder.mRatingValueView.setVisibility(placeModel.getRating() >= 0 ? View.VISIBLE : View.INVISIBLE);
 
+        String distanceTextTemplate = mContext.getString(R.string.distance_miles_template);
+        // Display very short distances as "< 0.1 mi" and round all other distances to the nearest tenth of a mile.
+        float roundedDistance = Math.round(placeModel.getDistance() * 10) / 10f;
+        viewHolder.mDistanceView.setText(
+                placeModel.getDistance() < 0.1 ?
+                distanceTextTemplate.replace("{%}", "< 0.1") :
+                distanceTextTemplate.replace("{%}", roundedDistance + ""));
+        viewHolder.mDistanceView.setVisibility(placeModel.getDistance() > 0 ? View.VISIBLE : View.INVISIBLE);
+
         viewHolder.mPlacesItemContainer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -65,6 +74,7 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
         @BindView(R.id.ratingBarView) RatingBar mRatingBarView;
         @BindView(R.id.descriptionView) TextView mDescriptionView;
         @BindView(R.id.addressView) TextView mAddressView;
+        @BindView(R.id.distanceView) TextView mDistanceView;
 
         public ViewHolder(View itemView) {
             super(itemView);

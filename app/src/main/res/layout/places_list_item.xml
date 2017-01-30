@@ -48,11 +48,34 @@
         android:text="Amazing waffles and diner food!"
         android:textSize="16dp" />
 
-    <TextView
-        android:id="@+id/addressView"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/descriptionView"
-        android:text="123 Address Blvd."
-        android:textSize="16dp" />
+        android:orientation="horizontal"
+        android:layout_below="@id/descriptionView">
+
+        <TextView
+            android:id="@+id/distanceView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="4 mi"
+            android:textSize="16dp"
+            android:visibility="invisible"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="."
+            android:layout_marginLeft="4dp"
+            android:layout_marginRight="2dp"
+            android:layout_marginTop="-4dp"
+            android:textSize="16dp"/>
+
+        <TextView
+            android:id="@+id/addressView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="123 Address Blvd."
+            android:textSize="16dp" />
+    </LinearLayout>
 </RelativeLayout>

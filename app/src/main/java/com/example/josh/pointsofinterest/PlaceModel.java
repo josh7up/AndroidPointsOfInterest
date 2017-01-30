@@ -1,5 +1,6 @@
 package com.example.josh.pointsofinterest;
 
+import android.location.Location;
 import android.net.Uri;
 
 import com.google.android.gms.location.places.PlaceLikelihood;
@@ -19,6 +20,8 @@ public class PlaceModel implements Serializable {
     private double lat, lon;
     private String name;
     private List<Integer> placeTypes;
+    // Calculated field.
+    private float distance;
 
     /**
      * private constructor used by inner Builder.
@@ -37,6 +40,14 @@ public class PlaceModel implements Serializable {
         this.lon = placeLikelihood.getPlace().getLatLng().longitude;
         this.name = (String) placeLikelihood.getPlace().getName();
         this.placeTypes = placeLikelihood.getPlace().getPlaceTypes() != null ? placeLikelihood.getPlace().getPlaceTypes() : new ArrayList<Integer>();
+    }
+
+    public void setDistance(float distanceMiles) {
+        this.distance = distanceMiles;
+    }
+
+    public float getDistance() {
+        return distance;
     }
 
     public String getDescription() {
@@ -90,6 +101,7 @@ public class PlaceModel implements Serializable {
         if (priceLevel != that.priceLevel) return false;
         if (Double.compare(that.lat, lat) != 0) return false;
         if (Double.compare(that.lon, lon) != 0) return false;
+        if (Float.compare(that.distance, distance) != 0) return false;
         if (description != null ? !description.equals(that.description) : that.description != null)
             return false;
         if (address != null ? !address.equals(that.address) : that.address != null) return false;
@@ -99,7 +111,6 @@ public class PlaceModel implements Serializable {
             return false;
         if (name != null ? !name.equals(that.name) : that.name != null) return false;
         return placeTypes != null ? placeTypes.equals(that.placeTypes) : that.placeTypes == null;
-
     }
 
     @Override
@@ -118,6 +129,7 @@ public class PlaceModel implements Serializable {
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         result = 31 * result + (name != null ? name.hashCode() : 0);
         result = 31 * result + (placeTypes != null ? placeTypes.hashCode() : 0);
+        result = 31 * result + (distance != +0.0f ? Float.floatToIntBits(distance) : 0);
         return result;
     }
 

@@ -71,6 +71,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private final Gson gson = new Gson();
     private List<PlaceModel> mPlaceModels = new ArrayList<>();
     private List<Marker> mMarkers = new ArrayList<>();
+    private PlaceModel mMyLocationPlaceModel;
+    private DistanceCalculator distanceCalculator = new DistanceCalculator();
 
     @BindView(R.id.drawerLayout) DrawerLayout mDrawerLayout;
     @BindView(R.id.placesView) RecyclerView mPlacesRecyclerView;
@@ -156,11 +158,23 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             String placesJson = sharedPreferences.getString(PLACE_MODELS_KEY, null);
             mPlaceModels = gson.fromJson(placesJson, new TypeToken<ArrayList<PlaceModel>>() {}.getType());
             clearMapMarkers();
+
             for (PlaceModel placeModel : mPlaceModels) {
                 Marker marker = mMap.addMarker(getMarkerOptions(placeModel));
                 marker.setTag(placeModel);
                 mMarkers.add(marker);
+
+                // Calculate the distance from the current location.
+                if (mMyLocationPlaceModel != null) {
+                    float distance = distanceCalculator.calculateDistance(
+                            mMyLocationPlaceModel.getLat(),
+                            mMyLocationPlaceModel.getLon(),
+                            placeModel.getLat(),
+                            placeModel.getLon());
+                    placeModel.setDistance(distance);
+                }
             }
+
             PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(mPlaceModels, this, this);
             mPlacesRecyclerView.setAdapter(placesAdapter);
         } else {
@@ -173,6 +187,17 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                     for (PlaceLikelihood placeLikelihood : likelyPlaces) {
                         PlaceModel placeModel = new PlaceModel(placeLikelihood);
+
+                        // Calculate the distance from the current location.
+                        if (mMyLocationPlaceModel != null) {
+                            float distance = distanceCalculator.calculateDistance(
+                                    mMyLocationPlaceModel.getLat(),
+                                    mMyLocationPlaceModel.getLon(),
+                                    placeModel.getLat(),
+                                    placeModel.getLon());
+                            placeModel.setDistance(distance);
+                        }
+
                         mPlaceModels.add(placeModel);
                         MarkerOptions markerOptions = getMarkerOptions(placeModel);
                         Marker marker = mMap.addMarker(markerOptions);
@@ -188,6 +213,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             });
         }
     }
+
+
 
     private void clearMapMarkers() {
         for (Marker marker : mMarkers) {
@@ -267,12 +294,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
                 .title(getString(R.string.my_location_marker_text)));
 
-        PlaceModel myLocationPlaceModel = new PlaceModel.Builder()
+        mMyLocationPlaceModel = new PlaceModel.Builder()
                 .latLon(latLng.latitude, latLng.longitude)
                 .name(getString(R.string.my_location_marker_text))
                 .build();
 
-        mMyLocationMarker.setTag(myLocationPlaceModel);
+        mMyLocationMarker.setTag(mMyLocationPlaceModel);
         animateCamera(latLng);
         displayPointsOfInterest();
     }
@@ -335,7 +362,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onPlaceSelected(PlaceModel placeModel) {
         // Center the camera on the corresponding map marker.
         animateCamera(new LatLng(placeModel.getLat(), placeModel.getLon()));
-        // TODO - show the info window for the corresponding map marker.
         Marker marker = getCorrespondingMarker(placeModel);
         if (marker != null) {
             marker.showInfoWindow();
