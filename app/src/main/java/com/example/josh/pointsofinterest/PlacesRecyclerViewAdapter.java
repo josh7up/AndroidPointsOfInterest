@@ -1,6 +1,9 @@
 package com.example.josh.pointsofinterest;
 
 import android.content.Context;
+import android.graphics.Color;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,6 +24,7 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
     private final List<PlaceModel> mPlaceModels;
     private final Context mContext;
     private final OnPlaceSelectedListener mOnPlaceSelectedListener;
+    private int mSelectedIndex = -1;
 
     public PlacesRecyclerViewAdapter(List<PlaceModel> placeModels, OnPlaceSelectedListener onPlaceSelectedListener, Context context) {
         mPlaceModels = new ArrayList<>(placeModels);
@@ -35,7 +39,13 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
         });
     }
 
-    public int getPosition(PlaceModel placeModel) {
+    /**
+     * Returns the index of the given PlaceModel in this adapter. The sort order of this adapter's models
+     * may be different than when the adapter was constructed.
+     * @param placeModel - The model to match against.
+     * @return - the index of the model, or -1 if no matching model is found.
+     */
+    public int getIndex(PlaceModel placeModel) {
         for (int i = 0 ; i < mPlaceModels.size(); i++) {
             if (mPlaceModels.get(i).equals(placeModel)) {
                 return i;
@@ -78,6 +88,12 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
                 }
             }
         });
+
+        viewHolder.mPlacesItemContainer.setCardBackgroundColor(
+                mSelectedIndex == position ?
+                ContextCompat.getColor(mContext, R.color.card_selection_background) :
+                ContextCompat.getColor(mContext, R.color.card_default_background)
+        );
     }
 
     @Override
@@ -85,9 +101,18 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
         return mPlaceModels.size();
     }
 
+    public void setSelectedPlace(PlaceModel placeModel) {
+        int currentSelectedIndex = mSelectedIndex;
+        mSelectedIndex = getIndex(placeModel);
+        notifyItemChanged(currentSelectedIndex);
+        if (mSelectedIndex != -1) {
+            notifyItemChanged(mSelectedIndex);
+        }
+    }
+
     public static class ViewHolder extends RecyclerView.ViewHolder {
 
-        @BindView(R.id.placesItemContainer) View mPlacesItemContainer;
+        @BindView(R.id.placesItemContainer) CardView mPlacesItemContainer;
         @BindView(R.id.placeNameView) TextView mPlaceNameView;
         @BindView(R.id.ratingValueView) TextView mRatingValueView;
         @BindView(R.id.ratingBarView) RatingBar mRatingBarView;

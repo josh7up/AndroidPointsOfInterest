@@ -4,7 +4,6 @@ import android.Manifest;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.net.Uri;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -118,9 +117,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public boolean onMarkerClick(Marker marker) {
                 if (mPlacesAdapter != null) {
-                    int adapterPosition = mPlacesAdapter.getPosition((PlaceModel) marker.getTag());
+                    PlaceModel placeModel = (PlaceModel) marker.getTag();
+                    int adapterPosition = mPlacesAdapter.getIndex(placeModel);
                     if (adapterPosition >= 0) {
                         mPlacesRecyclerView.smoothScrollToPosition(adapterPosition);
+                        mPlacesAdapter.setSelectedPlace(placeModel);
                     }
                 }
                 return false;
@@ -167,6 +168,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     List<PlaceModel> placeModels = toPlaceModels(likelyPlaces);
                     likelyPlaces.release();
                     updateViews(placeModels);
+                    // Persist the models for development purposes.
                     sharedPreferences.edit().putString(PLACE_MODELS_KEY, gson.toJson(mPlaceModels)).apply();
                 }
             });
@@ -365,6 +367,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (marker != null) {
             marker.showInfoWindow();
         }
+        mPlacesAdapter.setSelectedPlace(placeModel);
     }
 
     private Marker getCorrespondingMarker(PlaceModel placeModel) {
