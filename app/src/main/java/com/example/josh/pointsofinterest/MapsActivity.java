@@ -15,7 +15,6 @@ import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
@@ -33,7 +32,6 @@ import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.places.Place;
 import com.google.android.gms.location.places.PlaceLikelihood;
 import com.google.android.gms.location.places.PlaceLikelihoodBuffer;
 import com.google.android.gms.location.places.Places;
@@ -72,7 +70,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private List<PlaceModel> mPlaceModels = new ArrayList<>();
     private List<Marker> mMarkers = new ArrayList<>();
     private PlaceModel mMyLocationPlaceModel;
-    private DistanceCalculator distanceCalculator = new DistanceCalculator();
+    private DistanceCalculator mDistanceCalculator = new DistanceCalculator();
+    private LinearLayoutManager mLinearLayoutManager;
+    private PlacesRecyclerViewAdapter mPlacesAdapter;
 
     @BindView(R.id.drawerLayout) DrawerLayout mDrawerLayout;
     @BindView(R.id.placesView) RecyclerView mPlacesRecyclerView;
@@ -91,10 +91,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mActionBarDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout, R.string.drawer_open_description, R.string.drawer_close_description);
         mDrawerLayout.addDrawerListener(mActionBarDrawerToggle);
 
-        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
-        mPlacesRecyclerView.setLayoutManager(linearLayoutManager);
-        DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(mPlacesRecyclerView.getContext(), linearLayoutManager.getOrientation());
-        mPlacesRecyclerView.addItemDecoration(dividerItemDecoration);
+        mLinearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
+        mPlacesRecyclerView.setLayoutManager(mLinearLayoutManager);
 
         mToolbar.setNavigationIcon(R.drawable.hamburger);
         mToolbar.setTitle(getString(R.string.toolbar_title));
@@ -113,18 +111,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .build();
     }
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                if (mPlacesAdapter != null) {
+                    int adapterPosition = mPlacesAdapter.getPosition((PlaceModel) marker.getTag());
+                    if (adapterPosition >= 0) {
+                        mPlacesRecyclerView.smoothScrollToPosition(adapterPosition);
+                    }
+                }
+                return false;
+            }
+        });
     }
 
     @SuppressWarnings("MissingPermission")
@@ -177,15 +178,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mPlaceModels = updateDistances(placeModels);
         mMarkers = addMarkers(placeModels);
 
-        PlacesRecyclerViewAdapter placesAdapter = new PlacesRecyclerViewAdapter(mPlaceModels, this, this);
-        mPlacesRecyclerView.setAdapter(placesAdapter);
+        mPlacesAdapter = new PlacesRecyclerViewAdapter(mPlaceModels, this, this);
+        mPlacesRecyclerView.setAdapter(mPlacesAdapter);
     }
 
     private List<PlaceModel> updateDistances(List<PlaceModel> placeModels) {
         for (PlaceModel placeModel : placeModels) {
             // Calculate the distance from the current location.
             if (mMyLocationPlaceModel != null) {
-                float distance = distanceCalculator.calculateDistance(
+                float distance = mDistanceCalculator.calculateDistance(
                         mMyLocationPlaceModel.getLat(),
                         mMyLocationPlaceModel.getLon(),
                         placeModel.getLat(),

@@ -35,6 +35,15 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
         });
     }
 
+    public int getPosition(PlaceModel placeModel) {
+        for (int i = 0 ; i < mPlaceModels.size(); i++) {
+            if (mPlaceModels.get(i).equals(placeModel)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     @Override
     public PlacesRecyclerViewAdapter.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         LayoutInflater inflater = LayoutInflater.from(mContext);
