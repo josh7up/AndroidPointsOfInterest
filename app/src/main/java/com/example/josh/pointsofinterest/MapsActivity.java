@@ -344,7 +344,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.menu_item_show_list:
+            case R.id.menu_item_toggle_list:
+                // Change the toggle text to reflect the list visibility change that is about to happen.
+                item.setTitle(mPlacesContainer.getVisibility() == View.GONE ? getString(R.string.hide_list): getString(R.string.show_list));
                 // Toggle the list visibility state between gone and visible.
                 mPlacesContainer.setVisibility(mPlacesContainer.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
                 break;
