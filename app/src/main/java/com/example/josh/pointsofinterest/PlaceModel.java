@@ -20,6 +20,7 @@ public class PlaceModel implements Serializable {
     private double lat, lon;
     private String name;
     private List<Integer> placeTypes;
+    private String id;
     // Calculated field.
     private float distance;
 
@@ -30,6 +31,7 @@ public class PlaceModel implements Serializable {
     }
 
     public PlaceModel(PlaceLikelihood placeLikelihood) {
+        this.id = placeLikelihood.getPlace().getId();
         this.description = (String) placeLikelihood.getPlace().getAttributions();
         this.address = (String) placeLikelihood.getPlace().getAddress();
         this.phoneNumber = placeLikelihood.getPlace().getPhoneNumber().toString();
@@ -90,6 +92,10 @@ public class PlaceModel implements Serializable {
         return placeTypes;
     }
 
+    public String getId() {
+        return id;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -110,7 +116,9 @@ public class PlaceModel implements Serializable {
         if (websiteUrl != null ? !websiteUrl.equals(that.websiteUrl) : that.websiteUrl != null)
             return false;
         if (name != null ? !name.equals(that.name) : that.name != null) return false;
-        return placeTypes != null ? placeTypes.equals(that.placeTypes) : that.placeTypes == null;
+        if (placeTypes != null ? !placeTypes.equals(that.placeTypes) : that.placeTypes != null)
+            return false;
+        return id != null ? id.equals(that.id) : that.id == null;
     }
 
     @Override
@@ -129,6 +137,7 @@ public class PlaceModel implements Serializable {
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         result = 31 * result + (name != null ? name.hashCode() : 0);
         result = 31 * result + (placeTypes != null ? placeTypes.hashCode() : 0);
+        result = 31 * result + (id != null ? id.hashCode() : 0);
         result = 31 * result + (distance != +0.0f ? Float.floatToIntBits(distance) : 0);
         return result;
     }
@@ -180,6 +189,11 @@ public class PlaceModel implements Serializable {
 
         public Builder description(String description) {
             mPlaceModel.description = description;
+            return this;
+        }
+
+        public Builder id(String id) {
+            mPlaceModel.id = id;
             return this;
         }
 

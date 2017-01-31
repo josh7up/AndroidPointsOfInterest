@@ -1,7 +1,6 @@
 package com.example.josh.pointsofinterest;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
@@ -84,7 +83,7 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
             @Override
             public void onClick(View view) {
                 if (mOnPlaceSelectedListener != null) {
-                    mOnPlaceSelectedListener.onPlaceSelected(placeModel);
+                    mOnPlaceSelectedListener.onPlaceItemSelected(placeModel);
                 }
             }
         });
