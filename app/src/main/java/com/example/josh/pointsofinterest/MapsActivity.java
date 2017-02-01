@@ -81,7 +81,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private PlacesRecyclerViewAdapter mPlacesAdapter;
     private PlaceDAO mPlaceDAO;
 
-    @BindView(R.id.drawerLayout) DrawerLayout mDrawerLayout;
+    //@BindView(R.id.drawerLayout) DrawerLayout mDrawerLayout;
     @BindView(R.id.placesView) RecyclerView mPlacesRecyclerView;
     @BindView(R.id.placesContainer) View mPlacesContainer;
     @BindView(R.id.toolbar) Toolbar mToolbar;
@@ -95,13 +95,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        mActionBarDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout, R.string.drawer_open_description, R.string.drawer_close_description);
-        mDrawerLayout.addDrawerListener(mActionBarDrawerToggle);
+        //mActionBarDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout, R.string.drawer_open_description, R.string.drawer_close_description);
+        //mDrawerLayout.addDrawerListener(mActionBarDrawerToggle);
 
         mLinearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
         mPlacesRecyclerView.setLayoutManager(mLinearLayoutManager);
 
-        mToolbar.setNavigationIcon(R.drawable.hamburger);
+        //mToolbar.setNavigationIcon(R.drawable.hamburger);
         mToolbar.setTitle(getString(R.string.toolbar_title));
         setSupportActionBar(mToolbar);
 
@@ -408,13 +408,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
 
                 break;
-            case android.R.id.home:
-                if (mDrawerLayout.isDrawerOpen(GravityCompat.START)) {
-                    mDrawerLayout.closeDrawer(Gravity.LEFT);
-                } else{
-                    mDrawerLayout.openDrawer(Gravity.LEFT);
-                }
-                Toast.makeText(this, "Hamburgers!!!", Toast.LENGTH_SHORT).show();
+//            case android.R.id.home:
+//                if (mDrawerLayout.isDrawerOpen(GravityCompat.START)) {
+//                    mDrawerLayout.closeDrawer(Gravity.LEFT);
+//                } else{
+//                    mDrawerLayout.openDrawer(Gravity.LEFT);
+//                }
         }
         return true;
     }
