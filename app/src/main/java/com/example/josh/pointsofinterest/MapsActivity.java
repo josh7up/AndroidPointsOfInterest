@@ -9,15 +9,11 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.view.GravityCompat;
-import android.support.v4.widget.DrawerLayout;
-import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -68,7 +64,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Marker mMyLocationMarker;
     private PlaceModel mMyLocationPlaceModel;
 
-    private ActionBarDrawerToggle mActionBarDrawerToggle;
+    //private ActionBarDrawerToggle mActionBarDrawerToggle;
     private List<Marker> mMarkers = new ArrayList<>();
 
     private Marker mSearchResultMarker;
@@ -161,11 +157,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @SuppressWarnings("MissingPermission")
-    private void displayPointsOfInterestForMyLocation(final double lat, final double lon) {
-        if (mPlaceDAO.hasPlaces(lat, lon)) {
-            List<PlaceModel> placeModels = mPlaceDAO.getPlaces(lat, lon);
-            updateDistances(lat, lon, placeModels);
-            refreshView(placeModels);
+    private void displayPointsOfInterestForMyLocation(final PlaceModel referencePlaceModel) {
+        if (mPlaceDAO.hasPlaces(referencePlaceModel.getLat(), referencePlaceModel.getLon())) {
+            List<PlaceModel> placeModels = mPlaceDAO.getPlaces(referencePlaceModel.getLat(), referencePlaceModel.getLon());
+            updateDistances(referencePlaceModel, placeModels);
+            refreshView(referencePlaceModel, placeModels);
         } else {
             PendingResult<PlaceLikelihoodBuffer> nearbyPendingResult = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient, null);
             nearbyPendingResult.setResultCallback(new ResultCallback<PlaceLikelihoodBuffer>() {
@@ -173,27 +169,27 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 public void onResult(@NonNull PlaceLikelihoodBuffer likelyPlaces) {
                     List<PlaceModel> placeModels = mPlaceConverter.convert(likelyPlaces);
                     likelyPlaces.release();
-                    updateDistances(lat, lon, placeModels);
-                    refreshView(placeModels);
-                    mPlaceDAO.savePlaces(lat, lon, placeModels);
+                    updateDistances(referencePlaceModel, placeModels);
+                    refreshView(referencePlaceModel, placeModels);
+                    mPlaceDAO.savePlaces(referencePlaceModel.getLat(), referencePlaceModel.getLon(), placeModels);
                 }
             });
         }
     }
 
-    private void displayPointsOfInterest(final double lat, final double lon) {
+    private void displayPointsOfInterest(final PlaceModel referencePlaceModel) {
         // See if there are cached places for the given lat/lon.
-        if (mPlaceDAO.hasPlaces(lat, lon)) {
-            List<PlaceModel> placeModels = mPlaceDAO.getPlaces(lat, lon);
-            updateDistances(lat, lon, placeModels);
-            refreshView(placeModels);
+        if (mPlaceDAO.hasPlaces(referencePlaceModel.getLat(), referencePlaceModel.getLon())) {
+            List<PlaceModel> placeModels = mPlaceDAO.getPlaces(referencePlaceModel.getLat(), referencePlaceModel.getLon());
+            updateDistances(referencePlaceModel, placeModels);
+            refreshView(referencePlaceModel, placeModels);
         } else {
-            mPlaceService.getNearbyPlaces(lat, lon, new PlaceService.OnNearbyPlacesCallback() {
+            mPlaceService.getNearbyPlaces(referencePlaceModel.getLat(), referencePlaceModel.getLon(), new PlaceService.OnNearbyPlacesCallback() {
                 @Override
                 public void onSuccess(List<PlaceModel> placeModels) {
-                    updateDistances(lat, lon, placeModels);
-                    refreshView(placeModels);
-                    mPlaceDAO.savePlaces(lat, lon, placeModels);
+                    updateDistances(referencePlaceModel, placeModels);
+                    refreshView(referencePlaceModel, placeModels);
+                    mPlaceDAO.savePlaces(referencePlaceModel.getLat(), referencePlaceModel.getLon(), placeModels);
                 }
 
                 @Override
@@ -206,10 +202,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     /**
      * Displays new map markers and updates the places list with the given nearbyPlaceModels data.
+     *
+     * @param referencePlaceModel - the PlaceModel that the nearby locations are in reference to.
      * @param nearbyPlaceModels - The nearby place models to display on the map and list.
      */
-    private void refreshView(List <PlaceModel> nearbyPlaceModels) {
+    private void refreshView(PlaceModel referencePlaceModel, List <PlaceModel> nearbyPlaceModels) {
         clearMapMarkers();
+        mToolbar.setSubtitle("(" + referencePlaceModel.getName() + ")");
         mMarkers = addMarkers(nearbyPlaceModels);
         mPlacesAdapter = new PlacesRecyclerViewAdapter(nearbyPlaceModels, this, this);
         mPlacesRecyclerView.setAdapter(mPlacesAdapter);
@@ -219,16 +218,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
      * Calculates the distance between each placeModel's coordinates and the reference coordinates and
      * updates each placeModel's distance property.
      *
-     * @param referenceLat - The latitude to use for the distance calculation against each placeModel.
-     * @param referenceLon - The longitude to use for the distance calculation against each placeModel.
+     * @param referencePlaceModel - the PlaceModel that the nearby locations are in reference to.
      * @param nearbyPlaceModels - The models to use for the distance calculations.
      */
-    private void updateDistances(double referenceLat, double referenceLon, List<PlaceModel> nearbyPlaceModels) {
+    private void updateDistances(PlaceModel referencePlaceModel, List<PlaceModel> nearbyPlaceModels) {
         for (PlaceModel placeModel : nearbyPlaceModels) {
             // Calculate the distance of the placeModel's coordinates from the reference lat/lon.
             double distance = mGeoCalculator.calculateDistance(
-                    referenceLat,
-                    referenceLon,
+                    referencePlaceModel.getLat(),
+                    referencePlaceModel.getLon(),
                     placeModel.getLat(),
                     placeModel.getLon());
             placeModel.setDistance(distance);
@@ -339,7 +337,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         mMyLocationMarker.setTag(mMyLocationPlaceModel);
         animateCamera(latLng);
-        displayPointsOfInterestForMyLocation(mMyLocationPlaceModel.getLat(), mMyLocationPlaceModel.getLon());
+        displayPointsOfInterestForMyLocation(mMyLocationPlaceModel);
     }
 
     private void onPlaceSearchCompleted(Place place) {
@@ -357,7 +355,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mSearchResultMarker.setTag(mMyLocationPlaceModel);
 
         animateCamera(place.getLatLng());
-        displayPointsOfInterest(mSearchResultPlaceModel.getLat(), mSearchResultPlaceModel.getLon());
+        displayPointsOfInterest(mSearchResultPlaceModel);
     }
 
     @SuppressWarnings("MissingPermission")
