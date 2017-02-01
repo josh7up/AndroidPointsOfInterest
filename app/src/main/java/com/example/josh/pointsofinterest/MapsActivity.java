@@ -25,7 +25,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
-import com.example.josh.pointsofinterest.rest.nearby.NearbySearchResults;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
@@ -50,7 +49,6 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.util.ArrayList;
@@ -58,11 +56,6 @@ import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, OnPlaceSelectedListener {
 
@@ -70,10 +63,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final long LOCATION_UPDATE_INTERVAL = 1000 * 60 * 5;
     private static final long FASTEST_UPDATE_FREQ = 1000 * 5;
     private static final float POINTS_OF_INTEREST_ZOOM_LEVEL = 16;
-    private static final String MY_LOCATION_PLACE_MODELS_KEY = "my_location_places";
-    private static final String SEARCH_LOCATION_PLACE_MODELS_KEY = "search_location_places";
     private static final int PLACE_AUTOCOMPLETE_REQUEST_CODE = 1;
-    private static final long SEARCH_RADIUS_METERS = 1000;
 
     private GoogleMap mMap;
     private LocationRequest mLocationRequest;
@@ -83,16 +73,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private PlaceModel mMyLocationPlaceModel;
 
     private ActionBarDrawerToggle mActionBarDrawerToggle;
-    private final Gson gson = new Gson();
     private List<PlaceModel> mPlaceModels = new ArrayList<>();
     private List<Marker> mMarkers = new ArrayList<>();
 
     private Marker mSearchResultMarker;
     private PlaceModel mSearchResultPlaceModel;
 
-    private DistanceCalculator mDistanceCalculator = new DistanceCalculator();
+    private GeoCalculator mGeoCalculator = new GeoCalculator();
+    private PlaceConverter mPlaceConverter = new PlaceConverter();
+    private PlaceService mPlaceService;
     private LinearLayoutManager mLinearLayoutManager;
     private PlacesRecyclerViewAdapter mPlacesAdapter;
+    private PlaceCache mPlaceCache;
 
     @BindView(R.id.drawerLayout) DrawerLayout mDrawerLayout;
     @BindView(R.id.placesView) RecyclerView mPlacesRecyclerView;
@@ -129,6 +121,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .build();
+
+        mPlaceService = new PlaceService(this);
+        mPlaceCache = new PlaceCache(this);
     }
 
     @Override
@@ -171,15 +166,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @SuppressWarnings("MissingPermission")
-    private void displayPointsOfInterestForMyLocation() {
-        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        /*
-         * Cache the nearby places for development purposes. This will reduce the number of Google API calls and
-         * will allow the markers to load more quickly.
-         */
-        if (sharedPreferences.contains(MY_LOCATION_PLACE_MODELS_KEY)) {
-            String placesJson = sharedPreferences.getString(MY_LOCATION_PLACE_MODELS_KEY, null);
-            List<PlaceModel> placeModels = gson.fromJson(placesJson, new TypeToken<ArrayList<PlaceModel>>() {}.getType());
+    private void displayPointsOfInterestForMyLocation(final double lat, final double lon) {
+        if (mPlaceCache.hasPlaces(lat, lon)) {
+            List<PlaceModel> placeModels = mPlaceCache.getPlaces(lat, lon);
             updateViews(placeModels);
         } else {
             PendingResult<PlaceLikelihoodBuffer> nearbyPendingResult = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient, null);
@@ -189,46 +178,27 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     List<PlaceModel> placeModels = toPlaceModels(likelyPlaces);
                     likelyPlaces.release();
                     updateViews(placeModels);
-
-                    // Persist the models for development purposes.
-                    final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(MapsActivity.this);
-                    sharedPreferences.edit().putString(MY_LOCATION_PLACE_MODELS_KEY, gson.toJson(mPlaceModels)).apply();
+                    mPlaceCache.savePlaces(lat, lon, placeModels);
                 }
             });
         }
     }
 
-    @SuppressWarnings("MissingPermission")
-    private void displayPointsOfInterest(PlaceModel placeModel) {
-        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        if (sharedPreferences.contains(SEARCH_LOCATION_PLACE_MODELS_KEY)) {
-            String placesJson = sharedPreferences.getString(MY_LOCATION_PLACE_MODELS_KEY, null);
-            List<PlaceModel> placeModels = gson.fromJson(placesJson, new TypeToken<ArrayList<PlaceModel>>() {}.getType());
+    private void displayPointsOfInterest(final double lat, final double lon) {
+        // See if there are cached places for the given lat/lon.
+        if (mPlaceCache.hasPlaces(lat, lon)) {
+            List<PlaceModel> placeModels = mPlaceCache.getPlaces(lat, lon);
             updateViews(placeModels);
         } else {
-            Retrofit retrofit = new Retrofit.Builder()
-                    .baseUrl("https://maps.googleapis.com/")
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build();
-
-            NearbyPlacesService service = retrofit.create(NearbyPlacesService.class);
-            Call<NearbySearchResults> nearbySearchResultsCall = service.getNearbyPlaces(
-                getString(R.string.googleMapsApiKey),
-                String.format("%s,%s", placeModel.getLat(),
-                placeModel.getLon()), SEARCH_RADIUS_METERS
-            );
-
-            nearbySearchResultsCall.enqueue(new Callback<NearbySearchResults>() {
+            mPlaceService.getNearbyPlaces(lat, lon, new PlaceService.OnNearbyPlacesCallback() {
                 @Override
-                public void onResponse(Call<NearbySearchResults> call, Response<NearbySearchResults> response) {
-                    NearbySearchResults nearbySearchResults = response.body();
-                    NearbySearchConverter nearbySearchConverter = new NearbySearchConverter();
-                    List<PlaceModel> placeModels = nearbySearchConverter.getPlaceModels(nearbySearchResults);
+                public void onSuccess(List<PlaceModel> placeModels) {
                     updateViews(placeModels);
+                    mPlaceCache.savePlaces(lat, lon, placeModels);
                 }
 
                 @Override
-                public void onFailure(Call<NearbySearchResults> call, Throwable t) {
+                public void onFailure(Throwable t) {
                     Log.e(getClass().getName(), "Error getting nearby places", t);
                 }
             });
@@ -252,7 +222,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         for (PlaceModel placeModel : placeModels) {
             // Calculate the distance from the current location.
             if (mMyLocationPlaceModel != null) {
-                float distance = mDistanceCalculator.calculateDistance(
+                double distance = mGeoCalculator.calculateDistance(
                         mMyLocationPlaceModel.getLat(),
                         mMyLocationPlaceModel.getLon(),
                         placeModel.getLat(),
@@ -370,7 +340,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         mMyLocationMarker.setTag(mMyLocationPlaceModel);
         animateCamera(latLng);
-        displayPointsOfInterestForMyLocation();
+        displayPointsOfInterestForMyLocation(mMyLocationPlaceModel.getLat(), mMyLocationPlaceModel.getLon());
     }
 
     private void onPlaceSearchCompleted(Place place) {
@@ -380,22 +350,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             mSearchResultMarker.remove();
         }
 
-        PlaceModel.Builder placeBuilder = new PlaceModel.Builder()
-                .address((String) place.getAddress())
-                .placeTypes(place.getPlaceTypes())
-                .description((String) place.getAttributions())
-                .phoneNumber((String) place.getPhoneNumber())
-                .latLon(place.getLatLng().latitude, place.getLatLng().longitude)
-                .name((String) place.getName())
-                .priceLevel(place.getPriceLevel())
-                .rating(place.getRating())
-                .id(place.getId());
-
-        if (place.getWebsiteUri() != null) {
-            placeBuilder.websiteUrl(place.getWebsiteUri().toString());
-        }
-        mSearchResultPlaceModel = placeBuilder.build();
-
+        mSearchResultPlaceModel = mPlaceConverter.convert(place);
         mSearchResultMarker = mMap.addMarker(new MarkerOptions()
                 .position(place.getLatLng())
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
@@ -403,7 +358,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mSearchResultMarker.setTag(mMyLocationPlaceModel);
 
         animateCamera(place.getLatLng());
-        displayPointsOfInterest(mSearchResultPlaceModel);
+        displayPointsOfInterest(mSearchResultPlaceModel.getLat(), mSearchResultPlaceModel.getLon());
     }
 
     @SuppressWarnings("MissingPermission")
@@ -456,7 +411,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     Intent intent = new PlaceAutocomplete.IntentBuilder(PlaceAutocomplete.MODE_OVERLAY).build(this);
                     startActivityForResult(intent, PLACE_AUTOCOMPLETE_REQUEST_CODE);
                 } catch (GooglePlayServicesRepairableException e) {
+                    Log.e(getClass().getName(), "Error showing the search view.", e);
                 } catch (GooglePlayServicesNotAvailableException e) {
+                    Log.e(getClass().getName(), "Error showing the search view.", e);
                 }
 
                 break;

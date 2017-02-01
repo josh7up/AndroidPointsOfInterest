@@ -72,11 +72,11 @@ public class PlacesRecyclerViewAdapter extends RecyclerView.Adapter<PlacesRecycl
 
         String distanceTextTemplate = mContext.getString(R.string.distance_miles_template);
         // Display very short distances as "< 0.1 mi" and round all other distances to the nearest tenth of a mile.
-        float roundedDistance = Math.round(placeModel.getDistance() * 10) / 10f;
         viewHolder.mDistanceView.setText(
-                placeModel.getDistance() < 0.1 ?
-                distanceTextTemplate.replace("{%}", "< 0.1") :
-                distanceTextTemplate.replace("{%}", roundedDistance + ""));
+            placeModel.getDistance() < 0.1 ?
+            distanceTextTemplate.replace("{%}", "< 0.1") :
+            distanceTextTemplate.replace("{%}", String.format("%.1f", placeModel.getDistance()))
+        );
         viewHolder.mDistanceView.setVisibility(placeModel.getDistance() > 0 ? View.VISIBLE : View.INVISIBLE);
 
         viewHolder.mPlacesItemContainer.setOnClickListener(new View.OnClickListener() {
