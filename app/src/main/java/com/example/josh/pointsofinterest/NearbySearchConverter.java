@@ -57,7 +57,7 @@ public class NearbySearchConverter {
         if (result.getTypes() != null) {
             List<Integer> placeTypes = new ArrayList<>();
             for (String placeType : result.getTypes()) {
-                int typeId = MarkerIconMapper.getTypeId(placeType);
+                int typeId = PlaceTypeMapper.getTypeId(placeType);
                 if (typeId != -1) {
                     placeTypes.add(typeId);
                 }

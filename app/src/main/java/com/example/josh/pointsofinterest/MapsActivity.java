@@ -69,7 +69,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private PlaceModel mMyLocationPlaceModel;
 
     private ActionBarDrawerToggle mActionBarDrawerToggle;
-    private List<PlaceModel> mPlaceModels = new ArrayList<>();
     private List<Marker> mMarkers = new ArrayList<>();
 
     private Marker mSearchResultMarker;
@@ -211,7 +210,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
      */
     private void refreshView(List <PlaceModel> nearbyPlaceModels) {
         clearMapMarkers();
-        mPlaceModels = nearbyPlaceModels;
         mMarkers = addMarkers(nearbyPlaceModels);
         mPlacesAdapter = new PlacesRecyclerViewAdapter(nearbyPlaceModels, this, this);
         mPlacesRecyclerView.setAdapter(mPlacesAdapter);
@@ -272,8 +270,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .title(placeModel.getName())
                 .snippet(snippet);
 
-        int markerResourceId = MarkerIconMapper.getMarkerResourceId(placeTypes);
-        if (markerResourceId != MarkerIconMapper.DEFAULT_MARKER_ID) {
+        int markerResourceId = PlaceTypeMapper.getMarkerResourceId(placeTypes);
+        if (markerResourceId != PlaceTypeMapper.DEFAULT_MARKER_ID) {
             markerOptions.icon(BitmapDescriptorFactory.fromResource(markerResourceId));
         }
 
