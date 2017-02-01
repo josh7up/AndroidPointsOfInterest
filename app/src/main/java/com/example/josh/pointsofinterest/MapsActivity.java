@@ -2,10 +2,8 @@ package com.example.josh.pointsofinterest;
 
 import android.Manifest;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -49,7 +47,6 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.gson.reflect.TypeToken;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -84,7 +81,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private PlaceService mPlaceService;
     private LinearLayoutManager mLinearLayoutManager;
     private PlacesRecyclerViewAdapter mPlacesAdapter;
-    private PlaceCache mPlaceCache;
+    private PlaceDAO mPlaceDAO;
 
     @BindView(R.id.drawerLayout) DrawerLayout mDrawerLayout;
     @BindView(R.id.placesView) RecyclerView mPlacesRecyclerView;
@@ -123,7 +120,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .build();
 
         mPlaceService = new PlaceService(this);
-        mPlaceCache = new PlaceCache(this);
+        mPlaceDAO = new PlaceDAO(this);
     }
 
     @Override
@@ -167,8 +164,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @SuppressWarnings("MissingPermission")
     private void displayPointsOfInterestForMyLocation(final double lat, final double lon) {
-        if (mPlaceCache.hasPlaces(lat, lon)) {
-            List<PlaceModel> placeModels = mPlaceCache.getPlaces(lat, lon);
+        if (mPlaceDAO.hasPlaces(lat, lon)) {
+            List<PlaceModel> placeModels = mPlaceDAO.getPlaces(lat, lon);
             updateViews(placeModels);
         } else {
             PendingResult<PlaceLikelihoodBuffer> nearbyPendingResult = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient, null);
@@ -178,7 +175,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     List<PlaceModel> placeModels = toPlaceModels(likelyPlaces);
                     likelyPlaces.release();
                     updateViews(placeModels);
-                    mPlaceCache.savePlaces(lat, lon, placeModels);
+                    mPlaceDAO.savePlaces(lat, lon, placeModels);
                 }
             });
         }
@@ -186,15 +183,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void displayPointsOfInterest(final double lat, final double lon) {
         // See if there are cached places for the given lat/lon.
-        if (mPlaceCache.hasPlaces(lat, lon)) {
-            List<PlaceModel> placeModels = mPlaceCache.getPlaces(lat, lon);
+        if (mPlaceDAO.hasPlaces(lat, lon)) {
+            List<PlaceModel> placeModels = mPlaceDAO.getPlaces(lat, lon);
             updateViews(placeModels);
         } else {
             mPlaceService.getNearbyPlaces(lat, lon, new PlaceService.OnNearbyPlacesCallback() {
                 @Override
                 public void onSuccess(List<PlaceModel> placeModels) {
                     updateViews(placeModels);
-                    mPlaceCache.savePlaces(lat, lon, placeModels);
+                    mPlaceDAO.savePlaces(lat, lon, placeModels);
                 }
 
                 @Override
