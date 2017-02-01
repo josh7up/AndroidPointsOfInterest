@@ -34,7 +34,6 @@ import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.places.Place;
-import com.google.android.gms.location.places.PlaceLikelihood;
 import com.google.android.gms.location.places.PlaceLikelihoodBuffer;
 import com.google.android.gms.location.places.Places;
 import com.google.android.gms.location.places.ui.PlaceAutocomplete;
@@ -166,15 +165,17 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void displayPointsOfInterestForMyLocation(final double lat, final double lon) {
         if (mPlaceDAO.hasPlaces(lat, lon)) {
             List<PlaceModel> placeModels = mPlaceDAO.getPlaces(lat, lon);
-            updateViews(placeModels);
+            updateDistances(lat, lon, placeModels);
+            refreshView(placeModels);
         } else {
             PendingResult<PlaceLikelihoodBuffer> nearbyPendingResult = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient, null);
             nearbyPendingResult.setResultCallback(new ResultCallback<PlaceLikelihoodBuffer>() {
                 @Override
                 public void onResult(@NonNull PlaceLikelihoodBuffer likelyPlaces) {
-                    List<PlaceModel> placeModels = toPlaceModels(likelyPlaces);
+                    List<PlaceModel> placeModels = mPlaceConverter.convert(likelyPlaces);
                     likelyPlaces.release();
-                    updateViews(placeModels);
+                    updateDistances(lat, lon, placeModels);
+                    refreshView(placeModels);
                     mPlaceDAO.savePlaces(lat, lon, placeModels);
                 }
             });
@@ -185,12 +186,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         // See if there are cached places for the given lat/lon.
         if (mPlaceDAO.hasPlaces(lat, lon)) {
             List<PlaceModel> placeModels = mPlaceDAO.getPlaces(lat, lon);
-            updateViews(placeModels);
+            updateDistances(lat, lon, placeModels);
+            refreshView(placeModels);
         } else {
             mPlaceService.getNearbyPlaces(lat, lon, new PlaceService.OnNearbyPlacesCallback() {
                 @Override
                 public void onSuccess(List<PlaceModel> placeModels) {
-                    updateViews(placeModels);
+                    updateDistances(lat, lon, placeModels);
+                    refreshView(placeModels);
                     mPlaceDAO.savePlaces(lat, lon, placeModels);
                 }
 
@@ -202,34 +205,43 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    /*
-     * TODO - this method needs to take a PlaceModel argument so that either myLocation or the searchLocation
-     * can be used as a reference for distance to POI calculations.
+    /**
+     * Displays new map markers and updates the places list with the given nearbyPlaceModels data.
+     * @param nearbyPlaceModels - The nearby place models to display on the map and list.
      */
-    private void updateViews(List <PlaceModel> placeModels) {
+    private void refreshView(List <PlaceModel> nearbyPlaceModels) {
         clearMapMarkers();
-        mPlaceModels = updateDistances(placeModels);
-        mMarkers = addMarkers(placeModels);
-
-        mPlacesAdapter = new PlacesRecyclerViewAdapter(mPlaceModels, this, this);
+        mPlaceModels = nearbyPlaceModels;
+        mMarkers = addMarkers(nearbyPlaceModels);
+        mPlacesAdapter = new PlacesRecyclerViewAdapter(nearbyPlaceModels, this, this);
         mPlacesRecyclerView.setAdapter(mPlacesAdapter);
     }
 
-    private List<PlaceModel> updateDistances(List<PlaceModel> placeModels) {
-        for (PlaceModel placeModel : placeModels) {
-            // Calculate the distance from the current location.
-            if (mMyLocationPlaceModel != null) {
-                double distance = mGeoCalculator.calculateDistance(
-                        mMyLocationPlaceModel.getLat(),
-                        mMyLocationPlaceModel.getLon(),
-                        placeModel.getLat(),
-                        placeModel.getLon());
-                placeModel.setDistance(distance);
-            }
+    /**
+     * Calculates the distance between each placeModel's coordinates and the reference coordinates and
+     * updates each placeModel's distance property.
+     *
+     * @param referenceLat - The latitude to use for the distance calculation against each placeModel.
+     * @param referenceLon - The longitude to use for the distance calculation against each placeModel.
+     * @param nearbyPlaceModels - The models to use for the distance calculations.
+     */
+    private void updateDistances(double referenceLat, double referenceLon, List<PlaceModel> nearbyPlaceModels) {
+        for (PlaceModel placeModel : nearbyPlaceModels) {
+            // Calculate the distance of the placeModel's coordinates from the reference lat/lon.
+            double distance = mGeoCalculator.calculateDistance(
+                    referenceLat,
+                    referenceLon,
+                    placeModel.getLat(),
+                    placeModel.getLon());
+            placeModel.setDistance(distance);
         }
-        return placeModels;
     }
 
+    /**
+     * Adds markers to the map that correspond to the given placeModels.
+     * @param placeModels - models that contain the data for adding map markers.
+     * @return - The Markers that were added to the map.
+     */
     private List<Marker> addMarkers(List<PlaceModel> placeModels) {
         List<Marker> markers = new ArrayList<>();
         for (PlaceModel placeModel : placeModels) {
@@ -238,14 +250,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             markers.add(marker);
         }
         return markers;
-    }
-
-    private List<PlaceModel> toPlaceModels(PlaceLikelihoodBuffer likelyPlaces) {
-        List<PlaceModel> placeModels = new ArrayList<>();
-        for (PlaceLikelihood placeLikelihood : likelyPlaces) {
-            placeModels.add(new PlaceModel(placeLikelihood));
-        }
-        return placeModels;
     }
 
     private void clearMapMarkers() {
@@ -366,14 +370,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @Override
-    public void onConnectionSuspended(int cause) {
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-    }
-
-    @Override
     public void onLocationChanged(Location location) {
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
         onMyLocationFound(latLng);
@@ -433,9 +429,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 onPlaceSearchCompleted(place);
             } else if (resultCode == PlaceAutocomplete.RESULT_ERROR) {
                 Status status = PlaceAutocomplete.getStatus(this, data);
-                // TODO
-            } else if (resultCode == RESULT_CANCELED) {
-                // TODO
+                Toast.makeText(this, getString(R.string.place_search_error) + ": " + status.getStatusMessage(), Toast.LENGTH_LONG).show();
+                Log.e(getClass().getName(), "Place search error: " + status);
             }
         }
     }
@@ -459,5 +454,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         }
         return null;
+    }
+
+    @Override
+    public void onConnectionSuspended(int cause) {
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
     }
 }

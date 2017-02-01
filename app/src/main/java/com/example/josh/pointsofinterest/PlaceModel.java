@@ -1,12 +1,6 @@
 package com.example.josh.pointsofinterest;
 
-import android.location.Location;
-import android.net.Uri;
-
-import com.google.android.gms.location.places.PlaceLikelihood;
-
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 
 public class PlaceModel implements Serializable {
@@ -28,20 +22,6 @@ public class PlaceModel implements Serializable {
      * private constructor used by inner Builder.
      */
     private PlaceModel() {
-    }
-
-    public PlaceModel(PlaceLikelihood placeLikelihood) {
-        this.id = placeLikelihood.getPlace().getId();
-        this.description = (String) placeLikelihood.getPlace().getAttributions();
-        this.address = (String) placeLikelihood.getPlace().getAddress();
-        this.phoneNumber = placeLikelihood.getPlace().getPhoneNumber().toString();
-        this.rating = placeLikelihood.getPlace().getRating();
-        this.priceLevel = placeLikelihood.getPlace().getPriceLevel();
-        this.websiteUrl = placeLikelihood.getPlace().getWebsiteUri() != null ? placeLikelihood.getPlace().getWebsiteUri().toString() : null;
-        this.lat = placeLikelihood.getPlace().getLatLng().latitude;
-        this.lon = placeLikelihood.getPlace().getLatLng().longitude;
-        this.name = (String) placeLikelihood.getPlace().getName();
-        this.placeTypes = placeLikelihood.getPlace().getPlaceTypes() != null ? placeLikelihood.getPlace().getPlaceTypes() : new ArrayList<Integer>();
     }
 
     public void setDistance(double distanceMiles) {

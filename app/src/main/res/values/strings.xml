@@ -10,4 +10,5 @@
     <string name="distance_miles_template">{%} mi</string>
     <string name="menu_search_title">Find Place</string>
     <string name="search_dialog_info">Find an address</string>
+    <string name="place_search_error">There was a problem getting your search results</string>
 </resources>
