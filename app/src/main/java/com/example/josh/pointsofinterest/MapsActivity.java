@@ -37,6 +37,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
@@ -64,7 +65,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Marker mMyLocationMarker;
     private PlaceModel mMyLocationPlaceModel;
 
-    //private ActionBarDrawerToggle mActionBarDrawerToggle;
     private List<Marker> mMarkers = new ArrayList<>();
 
     private Marker mSearchResultMarker;
@@ -77,7 +77,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private PlacesRecyclerViewAdapter mPlacesAdapter;
     private PlaceDAO mPlaceDAO;
 
-    //@BindView(R.id.drawerLayout) DrawerLayout mDrawerLayout;
     @BindView(R.id.placesView) RecyclerView mPlacesRecyclerView;
     @BindView(R.id.placesContainer) View mPlacesContainer;
     @BindView(R.id.toolbar) Toolbar mToolbar;
@@ -91,13 +90,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        //mActionBarDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout, R.string.drawer_open_description, R.string.drawer_close_description);
-        //mDrawerLayout.addDrawerListener(mActionBarDrawerToggle);
-
         mLinearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
         mPlacesRecyclerView.setLayoutManager(mLinearLayoutManager);
 
-        //mToolbar.setNavigationIcon(R.drawable.hamburger);
         mToolbar.setTitle(getString(R.string.toolbar_title));
         setSupportActionBar(mToolbar);
 
@@ -255,25 +250,31 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mMarkers.clear();
     }
 
-    @NonNull
     private MarkerOptions getMarkerOptions(PlaceModel placeModel) {
         // Add a marker for each place near the device's current location, with an info window showing place information.
         String snippet = placeModel.getDescription() != null ?
                             placeModel.getAddress() + "\n" + placeModel.getDescription() :
                             placeModel.getAddress();
-        List<Integer> placeTypes = placeModel.getPlaceTypes();
 
-        MarkerOptions markerOptions = new MarkerOptions()
+        return new MarkerOptions()
                 .position(new LatLng(placeModel.getLat(), placeModel.getLon()))
                 .title(placeModel.getName())
+                .icon(getMarkerBitmapDescriptor(placeModel.getPlaceTypes()))
                 .snippet(snippet);
+    }
 
-        int markerResourceId = PlaceTypeMapper.getMarkerResourceId(placeTypes);
-        if (markerResourceId != PlaceTypeMapper.DEFAULT_MARKER_ID) {
-            markerOptions.icon(BitmapDescriptorFactory.fromResource(markerResourceId));
+    /**
+     * Return the first custom marker resource that matches any of the place types. Fallback to the default
+     * marker resource if there is no match.
+     */
+    private BitmapDescriptor getMarkerBitmapDescriptor(List<Integer> placeTypes) {
+        for (int placeType : placeTypes) {
+            int markerResourceId = PlaceTypeMapper.getMarkerResourceId(placeType);
+            if (markerResourceId != PlaceTypeMapper.DEFAULT_MARKER_ID) {
+                return BitmapDescriptorFactory.fromResource(markerResourceId);
+            }
         }
-
-        return markerOptions;
+        return BitmapDescriptorFactory.defaultMarker();
     }
 
     @Override
@@ -406,12 +407,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
 
                 break;
-//            case android.R.id.home:
-//                if (mDrawerLayout.isDrawerOpen(GravityCompat.START)) {
-//                    mDrawerLayout.closeDrawer(Gravity.LEFT);
-//                } else{
-//                    mDrawerLayout.openDrawer(Gravity.LEFT);
-//                }
         }
         return true;
     }

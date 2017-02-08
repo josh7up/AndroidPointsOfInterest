@@ -185,23 +185,18 @@ public class PlaceTypeMapper {
         typeIdToResourceIdMap.put(Place.TYPE_ZOO, R.drawable.pets);
     }
 
-    public static int getMarkerResourceId(List<Integer> placeTypes) {
-        if (!placeTypes.isEmpty()) {
-            for (int placeType : placeTypes) {
-                int resourceId = getMarkerResourceId(placeType);
-                if (resourceId != DEFAULT_MARKER_ID) {
-                    return resourceId;
-                }
-            }
-        }
-        return DEFAULT_MARKER_ID;
-    }
-
+    /**
+     * Returns a place type id that represents the given placeType description.
+     * @param placeType A place description, like "campground" and "amusement_park".
+     */
     public static int getTypeId(String placeType) {
         Integer typeId = typeNameToTypeIdMap.get(placeType);
         return typeId != null ? typeId : DEFAULT_TYPE_ID;
     }
 
+    /**
+     * Returns the resource id of a marker icon that represents the given placeTypeId.
+     */
     public static int getMarkerResourceId(int placeTypeId) {
         Integer resourceId = typeIdToResourceIdMap.get(placeTypeId);
         return resourceId != null ? resourceId : DEFAULT_MARKER_ID;
